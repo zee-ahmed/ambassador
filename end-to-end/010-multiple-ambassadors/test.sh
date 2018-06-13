@@ -11,6 +11,37 @@ PATH="${ROOT}:${PATH}"
 
 source ${ROOT}/utils.sh
 
+check_rbac () {
+    count=$(kubectl get clusterrole ambassador 2>/dev/null | grep -v NAME | wc -l || :)
+
+    if [ $count -eq 0 ]; then
+        echo "Applying Ambassador main RBAC"
+        kubectl apply -f $ROOT/rbac.yaml
+
+        attempts=60
+        running=
+
+        while [ $attempts -gt 0 ]; do
+            count=$(kubectl get clusterrole ambassador 2>/dev/null | grep -v NAME | wc -l || :)
+
+            if [ $count -gt 0 ]; then
+                printf "Ambassador main RBAC OK             \n"
+                running=yes
+                break
+            fi
+
+            printf "try %02d: waiting for RBAC\r"
+            attempts=$(( $attempts - 1 ))
+            sleep 2
+        done
+
+        if [ -z "$running" ]; then
+            echo "could not initialize Ambassador main RBAC" >&2
+            exit 1
+        fi
+    fi
+}
+
 initialize_cluster
 
 kubectl cluster-info
@@ -27,12 +58,17 @@ python ${ROOT}/yfix.py ${ROOT}/fixes/test-dep.yfix \
     test-010-2 \
     ambassador-2
 
+check_rbac
+
 kubectl create namespace test-010-1
 kubectl create namespace test-010-2
 kubectl create namespace test-010-svc
 kubectl apply -f k8s/rbac.yaml
 kubectl apply -f k8s/ambassador-1.yaml
 kubectl apply -f k8s/ambassador-2.yaml
+
+sleep 5
+
 kubectl apply -f k8s/ambassador-deployment-1.yaml
 kubectl apply -f k8s/ambassador-deployment-2.yaml
 
