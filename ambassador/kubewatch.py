@@ -21,11 +21,24 @@ from ambassador.VERSION import Version
 
 __version__ = Version
 
-logging.basicConfig(
-    level=logging.INFO, # if appDebug else logging.INFO,
-    format="%%(asctime)s kubewatch %s %%(levelname)s: %%(message)s" % __version__,
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+logFormatter = logging.Formatter("%%(asctime)s kubewatch %s %%(levelname)s: %%(message)s" % __version__,
+                                 datefmt="%Y-%m-%d %H:%M:%S")
+rootLogger = logging.getLogger()
+
+fileHandler = logging.FileHandler("kubewatch.log")
+fileHandler.setFormatter(logFormatter)
+rootLogger.addHandler(fileHandler)
+
+consoleHandler = logging.StreamHandler()
+consoleHandler.setFormatter(logFormatter)
+rootLogger.addHandler(consoleHandler)
+rootLogger.setLevel(logging.INFO)
+
+# logging.basicConfig(
+#     level=logging.INFO, # if appDebug else logging.INFO,
+#     format="%%(asctime)s kubewatch %s %%(levelname)s: %%(message)s" % __version__,
+#     datefmt="%Y-%m-%d %H:%M:%S"
+# )
 
 # logging.getLogger("datawire.scout").setLevel(logging.DEBUG)
 logger = logging.getLogger("kubewatch")
