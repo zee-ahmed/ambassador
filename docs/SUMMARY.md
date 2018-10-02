@@ -13,6 +13,7 @@
   * [Kubernetes (Helm)](user-guide/helm.md)
   * [Docker Quickstart](about/quickstart.md)
   * [Docker Compose](user-guide/docker-compose.md)
+  * [Early Access Releases](user-guide/early-access-releases.md)
 
 ## Concepts
 
@@ -37,6 +38,7 @@
 * [Configuring Ambassador](reference/configuration.md)
   * [Core Configuration](reference/modules.md)
     * [TLS and X-Forwarded-Proto](reference/core/tls.md)
+    * [SNI (Early Access)](reference/core/sni.md)
   * [Configuring Services](reference/mappings.md)
     * [Canary Releases](reference/canary.md)
     * [Cross Origin Resource Sharing](reference/cors.md)
