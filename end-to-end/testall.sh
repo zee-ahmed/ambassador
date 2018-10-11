@@ -96,14 +96,14 @@ echo
 echo "The following tests failed:"
 cat failures.txt
 
-cp failures.txt old-failures.txt
-# Empty the file for re-runs
-> failures.txt
-while read -r line || [[ -n "$line" ]]; do
-    echo
-    echo "Re-running $line"
-    run_and_log ${line}
-done < old-failures.txt
+# cp failures.txt old-failures.txt
+# # Empty the file for re-runs
+# > failures.txt
+# while read -r line || [[ -n "$line" ]]; do
+#     echo
+#     echo "Re-running $line"
+#     run_and_log ${line}
+# done < old-failures.txt
 
 for f in *-fail-*.log; do
     if [ -f ${f} ]; then

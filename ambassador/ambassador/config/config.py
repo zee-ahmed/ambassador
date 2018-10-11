@@ -301,9 +301,11 @@ class Config:
         storage = self.config.setdefault(storage_name, {})
 
         if resource.name in storage:
-            # Oooops.
-            raise Exception("%s defines %s %s, which is already present" %
-                            (resource, resource.kind, resource.name))
+            first = storage[resource.name]
+            if first.serialization != resource.serialization:
+                # Oooops.
+                raise Exception("%s defines %s %s, which is already present" %
+                                (resource, resource.kind, resource.name))
 
         if allow_log:
             self.logger.debug("%s: saving %s %s" %

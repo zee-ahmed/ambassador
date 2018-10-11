@@ -326,7 +326,7 @@ wait_for_extauth_enabled () {
     enabled=
 
     while [ $attempts -gt 0 ]; do
-        OK=$(curl -k -s $baseurl/ambassador/v0/diag/?json=true | jget.py /filters/0/name 2>&1 | egrep -c 'extauth')
+        OK=$(curl -k -s $baseurl/ambassador/v0/diag/?json=true | jget.py /ambassador_services/0/type 2>&1 | egrep -c 'AuthService')
 
         if [ $OK -gt 0 ]; then
             printf "extauth enabled            \n"
@@ -375,7 +375,7 @@ check_diag () {
 
     rc=1
 
-    command="curl -k -s ${extra_args} ${baseurl}/ambassador/v0/diag/?json=true | jget.py /routes > check-$index.json 2> /dev/null"
+    command="curl -k -s ${extra_args} ${baseurl}/ambassador/v0/diag/?json=true | jget.py /groups > check-$index.json 2> /dev/null"
     routes=
 
     attempts=100

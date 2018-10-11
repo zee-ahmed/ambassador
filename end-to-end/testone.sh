@@ -17,7 +17,7 @@ LOG="$(basename $DIR).log"
 attempt=0
 dir_passed=
 
-while [ $attempt -lt 2 ]; do
+while [ $attempt -lt 1 ]; do
     echo
     echo "================================================================"
     echo "${attempt}: $DIR..."

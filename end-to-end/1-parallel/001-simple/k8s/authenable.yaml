@@ -15,16 +15,16 @@ metadata:
         service_port: 8080
       ---
       apiVersion: ambassador/v0
-      kind: Module
+      kind: AuthService
       name:  authentication
       ambassador_id: 001-simple
-      config:
-        auth_service: "example-auth:3000"
-        path_prefix: "/extauth"
-        allowed_headers:
-        - "x-extauth-required"
-        - "x-authenticated-as"
-        - "x-qotm-session"
+      auth_service: "example-auth:3000"
+      path_prefix: "/extauth"
+      allowed_headers:
+      - "x-extauth-required"
+      - "x-authenticated-as"
+      - "x-qotm-session"
+      - "authorization"
 spec:
   selector:
     service: ambassador
