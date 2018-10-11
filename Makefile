@@ -93,7 +93,7 @@ ifeq ($(shell [[ "$(GIT_BRANCH)" =~ ^[0-9]+\.[0-9]+\.[0-9]+$$ ]] && echo "GA"), 
 COMMIT_TYPE=GA
 else ifeq ($(shell [[ "$(GIT_BRANCH)" =~ -rc[0-9]+$$ ]] && echo "RC"), RC)
 COMMIT_TYPE=RC
-else ifeq ($(shell [[ "$(GIT_BRANCH)" =~ -tt[0-9]+$$ ]] && echo "EA"), EA)
+else ifeq ($(shell [[ "$(GIT_BRANCH)" =~ -ea[0-9]+$$ ]] && echo "EA"), EA)
 COMMIT_TYPE=EA
 else ifeq ($(IS_PULL_REQUEST), true)
 COMMIT_TYPE=PR
@@ -205,10 +205,12 @@ ifneq ($(DOCKER_REGISTRY), -)
 	@if [ \( "$(GIT_DIRTY)" != "dirty" \) -o \( "$(GIT_BRANCH)" != "$(MAIN_BRANCH)" \) ]; then \
 		echo "PUSH $(AMBASSADOR_DOCKER_IMAGE)"; \
 		docker push $(AMBASSADOR_DOCKER_IMAGE) | python end-to-end/linify.py push.log; \
-		if [ "$(COMMIT_TYPE)" = "RC" ]; then \
+		if [ \( "$(COMMIT_TYPE)" = "RC" \) -o \( "$(COMMIT_TYPE)" = "EA" \) ]; then \
 			echo "PUSH $(AMBASSADOR_DOCKER_REPO):$(GIT_TAG_SANITIZED)"; \
 			docker tag $(AMBASSADOR_DOCKER_IMAGE) $(AMBASSADOR_DOCKER_REPO):$(GIT_TAG_SANITIZED); \
 			docker push $(AMBASSADOR_DOCKER_REPO):$(GIT_TAG_SANITIZED) | python end-to-end/linify.py push.log; \
+		fi; \
+		if [ "$(COMMIT_TYPE)" = "RC" ]; then \
 			echo "PUSH $(AMBASSADOR_DOCKER_REPO):$(LATEST_RC)"; \
 			docker tag $(AMBASSADOR_DOCKER_IMAGE) $(AMBASSADOR_DOCKER_REPO):$(LATEST_RC); \
 			docker push $(AMBASSADOR_DOCKER_REPO):$(LATEST_RC) | python end-to-end/linify.py push.log; \
@@ -309,6 +311,8 @@ cluster.yaml:
 	rm -f /tmp/k8s-*.yaml
 	$(call kill_teleproxy)
 	$(TELEPROXY) -kubeconfig $(shell pwd)/cluster.yaml 2> /tmp/teleproxy.log &
+	@echo "Sleeping for Teleproxy cluster"
+	sleep 10
 
 setup-test: cluster.yaml
 
