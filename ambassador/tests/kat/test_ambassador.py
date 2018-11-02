@@ -1,13 +1,13 @@
 import json
 import pytest
 
-from typing import ClassVar, Dict, List, Sequence, Tuple, Union
+from typing import ClassVar, Dict, List, Optional, Sequence, Tuple, Union
 
 from kat.harness import sanitize, variants, Query, Runner
 from kat import manifests
 
 from abstract_tests import AmbassadorTest, HTTP
-from abstract_tests import MappingTest, OptionTest, ServiceType, Node, Test
+from abstract_tests import MappingTest, MatchTest, OptionTest, ServiceType, Node, Test
 
 from t_ratelimit import RateLimitTest
 
@@ -159,18 +159,62 @@ def unique(options):
             result.append(o)
     return tuple(result)
 
-class SimpleMapping(MappingTest):
+
+class MainCollector(MappingTest):
 
     @classmethod
-    def variants(cls):
-        for st in variants(ServiceType):
-            yield cls(st, name="{self.target.name}")
+    def variants(cls, st: Optional[ServiceType]=None, mt: Optional[MatchTest]=None, lvl=0):
+        indent = " " * lvl
 
-            for mot in variants(OptionTest):
-                yield cls(st, (mot,), name="{self.target.name}-{self.options[0].name}")
+        print("%sSTART st %s mt %s" % (indent, st.name if st else "-none-", mt.name if mt else "-none-"))
 
-            yield cls(st, unique(v for v in variants(OptionTest)
-                                 if not getattr(v, "isolated", False)), name="{self.target.name}-all")
+        if not st:
+            for st in variants(ServiceType):
+                print("%s down for st %s mt %s" % (indent, st.name, mt.name if mt else "-none-"))
+                yield from variants(cls, st, mt, lvl)
+                print("%s back from st %s mt %s" % (indent, st.name, mt.name if mt else "-none-"))
+        else:
+            # No options. If we have a matcher, include it here.
+            if mt:
+                print("%s st %s mt %s" % (indent, st.name, mt.name))
+                yield cls(st, matcher=mt, name="{self.target.name}-{self.matcher.name}")
+            else:
+                print("%s st %s" % (indent, st.name))
+                yield cls(st, name="{self.target.name}")
+
+            # Handle options, but only with for positive matches (if we have a matcher).
+            for option_test in variants(OptionTest):
+                if mt:
+                    if mt.include_options:
+                        print("%s st %s mt %s ot %s" % (indent, st.name, mt.name, option_test.name))
+                        yield cls(st, matcher=mt, options=(option_test,),
+                                  name="{self.target.name}-{self.matcher.name}-{self.options[0].name}")
+                else:
+                    print("%s st %s ot %s" % (indent, st.name, option_test.name))
+                    yield cls(st, options=(option_test,), name="{self.target.name}-{self.options[0].name}")
+
+            # Handle all our unique non-isolated options.
+            all_options = unique(v for v in variants(OptionTest)
+                                 if not getattr(v, "isolated", False))
+
+            if mt:
+                if mt.include_options:
+                    print("%s st %s mt %s all" % (indent, st.name, mt.name))
+                    yield cls(st, matcher=mt, options=all_options,
+                              name="{self.target.name}-{self.matcher.name}-all")
+            else:
+                print("%s st %s all" % (indent, st.name))
+                yield cls(st, options=all_options, name="{self.target.name}-all")
+
+            # Finally, if we don't have a matcher already...
+            if not mt:
+                # ...then recurse for each matcher we find for this servicetype.
+                for mt2 in variants(MatchTest, st):
+                    print("%s st %s down for mt %s" % (indent, st.name, mt2.name))
+                    yield from variants(cls, st, mt2, lvl + 2)
+                    print("%s st %s back from mt %s" % (indent, st.name, mt2.name))
+
+        print("%sEND st %s mt %s" % (indent, st.name if st else "-none-", mt.name if mt else "-none-"))
 
     def config(self):
         yield self, self.format("""
@@ -182,8 +226,19 @@ prefix: /{self.name}/
 service: http://{self.target.path.k8s}
 """)
 
+    def init(self, target: ServiceType, matcher: Optional[MatchTest] = None, options = ()) -> None:
+        self.target = target
+        self.matcher = matcher
+        self.options = list(options)
+
     def queries(self):
-        yield Query(self.parent.url(self.name + "/"))
+        parent_url = self.parent.url(self.name + "/")
+
+        if self.matcher:
+            for query in self.matcher.match_queries():
+                yield query
+        else:
+            yield Query(parent_url)
 
     def check(self):
         for r in self.results:
@@ -590,6 +645,29 @@ driver: zipkin
 
         # Look for the host that we actually queried, since that's what appears in the spans.
         assert self.results[0].backend.request.host in tracelist
+
+
+class HeaderMatcher (MatchTest):
+    # Always include the match criteria in our config.
+    def config(self):
+        yield """
+headers:
+  x-demo-mode: host
+"""
+
+        yield """
+headers:
+  x-demo-mode: true
+"""
+
+    def positive_queries(self, parent_url):
+        """ Options get processed for these, because they should match. """
+        yield Query(parent_url, headers={ 'x-demo-mode: host' })
+
+    def negative_queries(self, parent_url):
+        """ Options won't processed for these, because they should not match. """
+        yield Query(parent_url, expected=404)
+
 
 # pytest will find this because Runner is a toplevel callable object in a file
 # that pytest is willing to look inside.

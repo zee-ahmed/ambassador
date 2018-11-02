@@ -244,6 +244,27 @@ class GRPC(ServiceType):
     pass
 
 
+
+@abstract_test
+class MatchTest(Test):
+    def positive(self):
+        self.include_options = True
+        self.name = self.name + "-pos"
+        self.match_queries = self.positive_queries
+        return self
+
+    def negative(self):
+        self.include_options = False
+        self.name = self.name + "-neg"
+        self.match_queries = self.negative_queries
+        return self
+
+    @classmethod
+    def variants(cls, st:Optional[ServiceType]=None):
+        yield cls().positive()
+        yield cls().negative()
+
+
 @abstract_test
 class MappingTest(Test):
 
