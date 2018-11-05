@@ -235,8 +235,8 @@ service: http://{self.target.path.k8s}
         parent_url = self.parent.url(self.name + "/")
 
         if self.matcher:
-            for query in self.matcher.match_queries():
-                yield query
+            print("%s has matcher %s" % (self.name, self.matcher.name))
+            yield from self.matcher.match_queries()
         else:
             yield Query(parent_url)
 
@@ -246,63 +246,63 @@ service: http://{self.target.path.k8s}
                 assert r.backend.name == self.target.path.k8s, (r.backend.name, self.target.path.k8s)
 
 
-class AddRequestHeaders(OptionTest):
-
-    VALUES: ClassVar[Sequence[Dict[str, str]]] = (
-        { "foo": "bar" },
-        { "moo": "arf" }
-    )
-
-    def config(self):
-        yield "add_request_headers: %s" % json.dumps(self.value)
-
-    def check(self):
-        for r in self.parent.results:
-            for k, v in self.value.items():
-                actual = r.backend.request.headers.get(k.lower())
-                assert actual == [v], (actual, [v])
-
-
-class UseWebsocket(OptionTest):
-    # TODO: add a check with a websocket client as soon as we have backend support for it
-
-    def config(self):
-        yield 'use_websocket: true'
+# class AddRequestHeaders(OptionTest):
+#
+#     VALUES: ClassVar[Sequence[Dict[str, str]]] = (
+#         { "foo": "bar" },
+#         { "moo": "arf" }
+#     )
+#
+#     def config(self):
+#         yield "add_request_headers: %s" % json.dumps(self.value)
+#
+#     def check(self):
+#         for r in self.parent.results:
+#             for k, v in self.value.items():
+#                 actual = r.backend.request.headers.get(k.lower())
+#                 assert actual == [v], (actual, [v])
 
 
-class WebSocketMapping(MappingTest):
+# class UseWebsocket(OptionTest):
+#     # TODO: add a check with a websocket client as soon as we have backend support for it
+#
+#     def config(self):
+#         yield 'use_websocket: true'
 
-    @classmethod
-    def variants(cls):
-        for st in variants(ServiceType):
-            yield cls(st, name="{self.target.name}")
 
-    def config(self):
-        yield self, self.format("""
----
-apiVersion: ambassador/v0
-kind:  Mapping
-name:  {self.name}
-prefix: /{self.name}/
-service: echo.websocket.org:80
-host_rewrite: echo.websocket.org
-use_websocket: true
-""")
-
-    def queries(self):
-        yield Query(self.parent.url(self.name + "/"), expected=404)
-
-        yield Query(self.parent.url(self.name + "/"), expected=101, headers={
-            "Connection": "Upgrade",
-            "Upgrade": "websocket",
-            "sec-websocket-key": "DcndnpZl13bMQDh7HOcz0g==",
-            "sec-websocket-version": "13"
-        })
-
-        yield Query(self.parent.url(self.name + "/", scheme="ws"), messages=["one", "two", "three"])
-
-    def check(self):
-        assert self.results[-1].messages == ["one", "two", "three"]
+# class WebSocketMapping(MappingTest):
+#
+#     @classmethod
+#     def variants(cls):
+#         for st in variants(ServiceType):
+#             yield cls(st, name="{self.target.name}")
+#
+#     def config(self):
+#         yield self, self.format("""
+# ---
+# apiVersion: ambassador/v0
+# kind:  Mapping
+# name:  {self.name}
+# prefix: /{self.name}/
+# service: echo.websocket.org:80
+# host_rewrite: echo.websocket.org
+# use_websocket: true
+# """)
+#
+#     def queries(self):
+#         yield Query(self.parent.url(self.name + "/"), expected=404)
+#
+#         yield Query(self.parent.url(self.name + "/"), expected=101, headers={
+#             "Connection": "Upgrade",
+#             "Upgrade": "websocket",
+#             "sec-websocket-key": "DcndnpZl13bMQDh7HOcz0g==",
+#             "sec-websocket-version": "13"
+#         })
+#
+#         yield Query(self.parent.url(self.name + "/", scheme="ws"), messages=["one", "two", "three"])
+#
+#     def check(self):
+#         assert self.results[-1].messages == ["one", "two", "three"]
 
 
 class CORS(OptionTest):
@@ -341,35 +341,35 @@ class CaseSensitive(OptionTest):
             yield Query(upped)
 
 
-class AutoHostRewrite(OptionTest):
-
-    def config(self):
-        yield "auto_host_rewrite: true"
-
-    def check(self):
-        for r in self.parent.results:
-            host = r.backend.request.host
-            assert r.backend.name == host, (r.backend.name, host)
-
-
-class Rewrite(OptionTest):
-
-    VALUES = ("/foo", "foo")
-
-    def config(self):
-        yield self.format("rewrite: {self.value}")
-
-    def queries(self):
-        if self.value[0] != "/":
-            for q in self.parent.pending:
-                q.xfail = "rewrite option is broken for values not beginning in slash"
-        return super(OptionTest, self).queries()
-
-    def check(self):
-        if self.value[0] != "/":
-            pytest.xfail("this is broken")
-        for r in self.parent.results:
-            assert r.backend.request.url.path == self.value
+# class AutoHostRewrite(OptionTest):
+#
+#     def config(self):
+#         yield "auto_host_rewrite: true"
+#
+#     def check(self):
+#         for r in self.parent.results:
+#             host = r.backend.request.host
+#             assert r.backend.name == host, (r.backend.name, host)
+#
+#
+# class Rewrite(OptionTest):
+#
+#     VALUES = ("/foo", "foo")
+#
+#     def config(self):
+#         yield self.format("rewrite: {self.value}")
+#
+#     def queries(self):
+#         if self.value[0] != "/":
+#             for q in self.parent.pending:
+#                 q.xfail = "rewrite option is broken for values not beginning in slash"
+#         return super(OptionTest, self).queries()
+#
+#     def check(self):
+#         if self.value[0] != "/":
+#             pytest.xfail("this is broken")
+#         for r in self.parent.results:
+#             assert r.backend.request.url.path == self.value
 
 
 class TLSOrigination(MappingTest):
@@ -647,7 +647,12 @@ driver: zipkin
         assert self.results[0].backend.request.host in tracelist
 
 
-class HeaderMatcher (MatchTest):
+class HdrMatch(MatchTest):
+    debug: True
+
+    def init(self):
+        print("HdrMatch %s has match_queries %s" % (self.name, self.match_queries))
+
     # Always include the match criteria in our config.
     def config(self):
         yield """

@@ -261,8 +261,13 @@ class MatchTest(Test):
 
     @classmethod
     def variants(cls, st:Optional[ServiceType]=None):
-        yield cls().positive()
-        yield cls().negative()
+        pos = cls().positive()
+        print("yielding %s with match_queries %s" % (pos.name, pos.match_queries))
+        yield pos
+
+        neg = cls().negative()
+        print("yielding %s with match_queries %s" % (pos.name, pos.match_queries))
+        yield neg
 
 
 @abstract_test

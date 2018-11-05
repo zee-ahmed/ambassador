@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from itertools import chain, product
-from typing import Any, Dict, Iterable, Mapping, Optional, Sequence, Tuple, Type
+from typing import Any, ClassVar, Dict, Iterable, Mapping, Optional, Sequence, Tuple, Type
 
 import base64, copy, fnmatch, functools, inspect, json, os, pprint, pytest, sys, time, threading, traceback
 
@@ -61,6 +61,26 @@ def variants(cls, *args, **kwargs) -> Tuple[Any]:
     return tuple(a for n in get_nodes(cls) for a in n.variants(*args, **kwargs))
 
 class Name(str):
+    # Mangled: ClassVar[Dict[str, str]] = {}
+    # Demangled: ClassVar[Dict[str, str]] = {}
+    #
+    # def __init__(self, s: str) -> None:
+    #     if len(s) > 63:
+    #         if s not in Name.Mangled:
+    #             count = 0
+    #
+    #             while True:
+    #                 mangled = "%s%03d" % (s[:60], count)
+    #
+    #                 if mangled not in Name.Demangled:
+    #                     Name.Mangled[s] = mangled
+    #                     Name.Demangled[mangled] = s
+    #
+    #                     break
+    #
+    #         super().__init__(self, Name.Mangled[s])
+    #     else:
+    #         super().__init__(self, s)
 
     @property
     def k8s(self):
