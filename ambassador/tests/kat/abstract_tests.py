@@ -247,26 +247,26 @@ class GRPC(ServiceType):
 
 @abstract_test
 class MatchTest(Test):
-    def positive(self):
-        self.include_options = True
-        self.name = self.name + "-pos"
-        self.match_queries = self.positive_queries
-        return self
-
-    def negative(self):
-        self.include_options = False
-        self.name = self.name + "-neg"
-        self.match_queries = self.negative_queries
-        return self
+    def init(self, positive: bool=True):
+        self.include_options = positive
+        self.match_queries = self.positive_queries if positive else self.negative_queries
 
     @classmethod
     def variants(cls, st:Optional[ServiceType]=None):
-        pos = cls().positive()
-        print("yielding %s with match_queries %s" % (pos.name, pos.match_queries))
+        # This is bizarre, but basically, we don't want to pass 'st' as
+        # an argument to cls() because we don't want it to turn into another level
+        # of hierarchy. We just want to save it.
+
+        pos = cls(positive=True, name="pos")
+        pos.service_type = st
+        pos._clone_preserve = [ 'service_type' ]
+        print("    MT %s (st %s)" % (pos.name, pos.service_type.name))
         yield pos
 
-        neg = cls().negative()
-        print("yielding %s with match_queries %s" % (pos.name, pos.match_queries))
+        neg = cls(positive=False, name="neg")
+        neg.service_type = st
+        neg._clone_preserve = [ 'service_type' ]
+        print("    MT %s (st %s)" % (neg.name, neg.service_type.name))
         yield neg
 
 

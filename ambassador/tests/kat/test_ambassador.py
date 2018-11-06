@@ -160,61 +160,63 @@ def unique(options):
     return tuple(result)
 
 
-class MainCollector(MappingTest):
+# Hierarchy here:
+# AmbassadorTest creates an Ambassador and configures it with global stuff
+#   - MappingTest creates a Mapping we'll work with
+#   - ServiceType defines a kind of upstream service we can work with (and, I suppose, creates it?)
+#   - MatchTest defines what kind of matches (prefix, regex, whatever) our Mapping will work with
+#   - OptionTest defines options about how traffic will flow through our Mapping
+#
+# MappingServiceCollector is a MappingTest so that AmbassadorTest can find it. It collects all the
+# ServiceTypes as variants, then in init it searches for MatchTestCollectors.
+#
+# MatchTestCollector (there should only be one of these) collects all the MatchTests as variants, then
+# in init it searches for OptionTestCollectors.
+#
+# OptionTestCollector collects OptionTests as variants.
+#
+# Why the weird dichotomy between variants and init()? Because adding a level of hierarchy is implicit
+# and a bit odd in Kat right now: a level gets added _when an object is created or cloned_, but only in
+# init, but really only when _passed as a parameter_ to init or variants. This makes it really tricky
+# to manage when hierarchy is created.
+#
+# XXX This is rather a crock, especially _clone_preserve, and too many things get added, e.g.:
+# Plain.MappingServiceCollector-HTTP.HdrMatch-pos
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.HdrMatch-pos
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.CORS
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.CaseSensitive
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.OptionTestCollector-CORS
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.OptionTestCollector-CORS.CORS
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.OptionTestCollector-CaseSensitive
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.OptionTestCollector-CaseSensitive.CaseSensitive
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.OptionTestCollector-all
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.OptionTestCollector-all.CORS
+# Plain.MappingServiceCollector-HTTP.MatchTestCollector-HdrMatch-pos.OptionTestCollector-all.CaseSensitive
+#
+# I mean... three HdrMatch-pos leaf nodes? extra leaves below OptionTestCollector-all? both
+# HdrMatch-pos and MatchTestCollector-HdrMatch-pos? sigh.
 
+class MappingServiceCollector(MappingTest):
     @classmethod
-    def variants(cls, st: Optional[ServiceType]=None, mt: Optional[MatchTest]=None, lvl=0):
-        indent = " " * lvl
+    def variants(cls):
+        print("MSColl: scan ServiceTypes")
 
-        print("%sSTART st %s mt %s" % (indent, st.name if st else "-none-", mt.name if mt else "-none-"))
+        for st in variants(ServiceType):
+            print(" MSColl: working with ServiceType %s" % st.name)
+            yield cls(st, name="{self.target.name}")
+            print(" MSColl: done with ServiceType %s" % st.name)
 
-        if not st:
-            for st in variants(ServiceType):
-                print("%s down for st %s mt %s" % (indent, st.name, mt.name if mt else "-none-"))
-                yield from variants(cls, st, mt, lvl)
-                print("%s back from st %s mt %s" % (indent, st.name, mt.name if mt else "-none-"))
-        else:
-            # No options. If we have a matcher, include it here.
-            if mt:
-                print("%s st %s mt %s" % (indent, st.name, mt.name))
-                yield cls(st, matcher=mt, name="{self.target.name}-{self.matcher.name}")
-            else:
-                print("%s st %s" % (indent, st.name))
-                yield cls(st, name="{self.target.name}")
+    def init(self, st: ServiceType) -> None:
+        self.target = st
+        self._clone_preserve = [ 'target' ]
 
-            # Handle options, but only with for positive matches (if we have a matcher).
-            for option_test in variants(OptionTest):
-                if mt:
-                    if mt.include_options:
-                        print("%s st %s mt %s ot %s" % (indent, st.name, mt.name, option_test.name))
-                        yield cls(st, matcher=mt, options=(option_test,),
-                                  name="{self.target.name}-{self.matcher.name}-{self.options[0].name}")
-                else:
-                    print("%s st %s ot %s" % (indent, st.name, option_test.name))
-                    yield cls(st, options=(option_test,), name="{self.target.name}-{self.options[0].name}")
+        print("  MSColl %s: init scan MatchTestCollectors" % self.target.name)
 
-            # Handle all our unique non-isolated options.
-            all_options = unique(v for v in variants(OptionTest)
-                                 if not getattr(v, "isolated", False))
+        for mt in variants(MatchTestCollector, self.target):
+            print("  MSColl %s: init found mt %s (%s)" % (self.target.name, mt.name, mt.service_type.name))
 
-            if mt:
-                if mt.include_options:
-                    print("%s st %s mt %s all" % (indent, st.name, mt.name))
-                    yield cls(st, matcher=mt, options=all_options,
-                              name="{self.target.name}-{self.matcher.name}-all")
-            else:
-                print("%s st %s all" % (indent, st.name))
-                yield cls(st, options=all_options, name="{self.target.name}-all")
-
-            # Finally, if we don't have a matcher already...
-            if not mt:
-                # ...then recurse for each matcher we find for this servicetype.
-                for mt2 in variants(MatchTest, st):
-                    print("%s st %s down for mt %s" % (indent, st.name, mt2.name))
-                    yield from variants(cls, st, mt2, lvl + 2)
-                    print("%s st %s back from mt %s" % (indent, st.name, mt2.name))
-
-        print("%sEND st %s mt %s" % (indent, st.name if st else "-none-", mt.name if mt else "-none-"))
+        print("  MSColl %s: init scan done" % self.target.name)
 
     def config(self):
         yield self, self.format("""
@@ -225,11 +227,6 @@ name:  {self.name}
 prefix: /{self.name}/
 service: http://{self.target.path.k8s}
 """)
-
-    def init(self, target: ServiceType, matcher: Optional[MatchTest] = None, options = ()) -> None:
-        self.target = target
-        self.matcher = matcher
-        self.options = list(options)
 
     def queries(self):
         parent_url = self.parent.url(self.name + "/")
@@ -244,6 +241,78 @@ service: http://{self.target.path.k8s}
         for r in self.results:
             if r.backend:
                 assert r.backend.name == self.target.path.k8s, (r.backend.name, self.target.path.k8s)
+
+
+class MatchTestCollector(Test):
+    @classmethod
+    def variants(cls, st:ServiceType):
+        print("   MTColl %s: scan MatchTests" % st.name)
+
+        for mt in variants(MatchTest, st):
+            print("    MTColl %s: working with %s (st %s)" % (st.name, mt.name, mt.service_type.name))
+
+            cls(mt, name="{self.matcher.name}")
+
+        if False: yield
+
+    def init(self, mt:MatchTest) -> None:
+        self.matcher = mt
+        self.service_type = self.matcher.service_type
+        self._clone_preserve = [ 'matcher', 'service_type' ]
+
+        if self.matcher.include_options:
+            print("     MTColl %s, %s: init scan OptionTestCollectors" % (self.service_type.name, self.matcher.name))
+
+            for otc in variants(OptionTestCollector, self.service_type, self.matcher):
+                print("      MTColl %s, %s: init found otc %s" %
+                      (self.service_type.name, self.matcher.name, otc.name))
+
+            print("     MTColl %s, %s: init scan done" % (self.service_type.name, self.matcher.name))
+
+
+class OptionTestCollector(Test):
+    @classmethod
+    def variants(cls, st:ServiceType, mt:MatchTest):
+        print("       OTColl %s, %s: scan OptionTests" % (st.name, mt.name))
+
+        all_options = []
+
+        for ot in variants(OptionTest):
+            print("        OTColl %s, %s: working with %s" % (st.name, mt.name, ot.name))
+
+            collected = cls((ot,), name="{self.options[0].name}")
+            collected.service_type = st
+            collected.matcher = mt
+            collected._clone_preserve += [ 'matcher', 'service_type' ]
+            # yield collected
+
+            if not getattr(ot, 'isolated', False):
+                all_options.append(ot)
+
+        all_options = unique(all_options)
+
+        print("        OTColl %s, %s: working with all_options" % (st.name, mt.name))
+
+        collected = cls(all_options, name="all")
+        collected.service_type = st
+        collected.matcher = mt
+        collected._clone_preserve += [ 'matcher', 'service_type' ]
+        # yield collected
+
+        print("       OTColl %s, %s: scan done" % (st.name, mt.name))
+
+        if False: yield
+
+    def init(self, options:Tuple[OptionTest]) -> None:
+        self.options = options
+        self._clone_preserve = [ 'options' ]
+
+
+
+# class MatchTestCollector(MappingTest):
+
+
+#       - OptionTestCollector is a MatchTest that collects:
 
 
 # class AddRequestHeaders(OptionTest):
@@ -650,8 +719,9 @@ driver: zipkin
 class HdrMatch(MatchTest):
     debug: True
 
-    def init(self):
-        print("HdrMatch %s has match_queries %s" % (self.name, self.match_queries))
+    # def postinit(self):
+    #     print("HdrMatch %s has match_queries %s" % (self.name, self.match_queries))
+    #     print("and children %s" % self.children)
 
     # Always include the match criteria in our config.
     def config(self):

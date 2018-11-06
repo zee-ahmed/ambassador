@@ -51,6 +51,10 @@ def abstract_test(cls):
     return cls
 
 def get_nodes(type):
+    # print("GN %s (isabstract %s, abstract_test %s, subclasses %s" %
+    #       (type, inspect.isabstract(type), type.__dict__.get("abstract_test", False),
+    #        ",".join([str(x) for x in type.__subclasses__()])))
+
     if not inspect.isabstract(type) and not type.__dict__.get("abstract_test", False):
         yield type
     for sc in type.__subclasses__():
@@ -123,6 +127,9 @@ class Node(ABC):
                 name = _clone.name
             self._args = _clone._args
             self._kwargs = _clone._kwargs
+
+            for attrname in getattr(_clone, '_clone_preserve', []):
+                setattr(self, attrname, getattr(_clone, attrname))
         else:
             self._args = args
             self._kwargs = kwargs
@@ -151,6 +158,10 @@ class Node(ABC):
                                          (self.name, self.__class__.__name__, c.name, c.__class__.__name__,
                                           names[c.name].__class__.__name__))
             names[c.name] = c
+
+        postinit = getattr(self, "postinit", lambda: None)
+        postinit()
+
 
     def clone(self, name=None):
         return self.__class__(_clone=self, name=name)
