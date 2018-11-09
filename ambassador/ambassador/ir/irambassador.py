@@ -37,6 +37,7 @@ class IRAmbassador (IRResource):
                  rkey: str="ir.ambassador",
                  kind: str="IRAmbassador",
                  name: str="ir.ambassador",
+                 use_remote_address: bool=True,
                  **kwargs) -> None:
         # print("IRAmbassador __init__ (%s %s %s)" % (kind, name, kwargs))
 
@@ -50,6 +51,7 @@ class IRAmbassador (IRResource):
             readiness_probe={"enabled": True},
             diagnostics={"enabled": True},
             use_proxy_proto=False,
+            use_remote_address=use_remote_address,
             x_forwarded_proto_redirect=False,
             **kwargs
         )
@@ -99,7 +101,7 @@ class IRAmbassador (IRResource):
                     etls = IREnvoyTLS(ir=ir, aconf=aconf, name=ctx_name,
                                       location=ctxloc, **ctx)
 
-                    if ir.save_tls_context(ctx_name, etls):
+                    if ir.save_envoy_tls_context(ctx_name, etls):
                         self.logger.debug("created context %s from %s" % (ctx_name, ctxloc))
                         # self.logger.debug(etls.as_json())
                     else:
@@ -110,7 +112,7 @@ class IRAmbassador (IRResource):
                         self.logger.debug("TLS termination enabled!")
                         self.service_port = 443
 
-        ctx = ir.get_tls_context('client')
+        ctx = ir.get_envoy_tls_context('client')
 
         if ctx:
             # Client-side TLS is enabled.
