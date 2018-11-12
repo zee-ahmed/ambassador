@@ -89,7 +89,7 @@ class TLS(AmbassadorTest):
     pass    # not gonna spell most of these out.
 
 
-class SimpleMapping(MappingTest):
+class BasicMapping(MappingTest):
     """
     MappingTests define a Mapping within an existing AmbassadorTest. They're a bit odd in that
     they need a ServiceType as an argument, but they don't really live _under_ the ServiceType.
@@ -170,7 +170,6 @@ class HdrMatch1(MatchTest):
     OptionTests below us.
     """
     debug: True
-
 
     def config(self):
         yield """
