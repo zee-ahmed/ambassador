@@ -6,9 +6,61 @@ from abstract_tests import AmbassadorTest, ServiceType, MappingTest, MatchTest, 
 ConfigGenType = Generator[Union[str, Tuple[Node, str]], None, None]
 QueryGenType = Generator[Query, None, None]
 
-class TLS(AmbassadorTest):
+# This is a boneheaded simple sketch of some test stuff (kind of ignoring ServiceType right now)
+#
+# I think that we'd want, from the below:
+#
+# Plain
+# Plain.SimpleMapping
+# Plain.SimpleMapping.HdrMatch1-pos
+# Plain.SimpleMapping.HdrMatch1-pos.AddRequestHeaders
+# Plain.SimpleMapping.HdrMatch1-pos.UseWebsocket
+# Plain.SimpleMapping.HdrMatch1-pos.all
+# Plain.SimpleMapping.HdrMatch1-neg
+# Plain.SimpleMapping.HdrMatch2-pos
+# Plain.SimpleMapping.HdrMatch2-pos.AddRequestHeaders
+# Plain.SimpleMapping.HdrMatch2-pos.UseWebsocket
+# Plain.SimpleMapping.HdrMatch2-pos.all
+# Plain.SimpleMapping.HdrMatch2-neg
+# Plain.CanaryMapping
+# Plain.CanaryMapping.HdrMatch1-pos
+# Plain.CanaryMapping.HdrMatch1-pos.AddRequestHeaders
+# Plain.CanaryMapping.HdrMatch1-pos.UseWebsocket
+# Plain.CanaryMapping.HdrMatch1-pos.all
+# Plain.CanaryMapping.HdrMatch1-neg
+# Plain.CanaryMapping.HdrMatch2-pos
+# Plain.CanaryMapping.HdrMatch2-pos.AddRequestHeaders
+# Plain.CanaryMapping.HdrMatch2-pos.UseWebsocket
+# Plain.CanaryMapping.HdrMatch2-pos.all
+# Plain.CanaryMapping.HdrMatch2-neg
+# TLS
+# TLS.SimpleMapping
+# TLS.SimpleMapping.HdrMatch1-pos
+# TLS.SimpleMapping.HdrMatch1-pos.AddRequestHeaders
+# TLS.SimpleMapping.HdrMatch1-pos.UseWebsocket
+# TLS.SimpleMapping.HdrMatch1-pos.all
+# TLS.SimpleMapping.HdrMatch1-neg
+# TLS.SimpleMapping.HdrMatch2-pos
+# TLS.SimpleMapping.HdrMatch2-pos.AddRequestHeaders
+# TLS.SimpleMapping.HdrMatch2-pos.UseWebsocket
+# TLS.SimpleMapping.HdrMatch2-pos.all
+# TLS.SimpleMapping.HdrMatch2-neg
+# TLS.CanaryMapping
+# TLS.CanaryMapping.HdrMatch1-pos
+# TLS.CanaryMapping.HdrMatch1-pos.AddRequestHeaders
+# TLS.CanaryMapping.HdrMatch1-pos.UseWebsocket
+# TLS.CanaryMapping.HdrMatch1-pos.all
+# TLS.CanaryMapping.HdrMatch1-neg
+# TLS.CanaryMapping.HdrMatch2-pos
+# TLS.CanaryMapping.HdrMatch2-pos.AddRequestHeaders
+# TLS.CanaryMapping.HdrMatch2-pos.UseWebsocket
+# TLS.CanaryMapping.HdrMatch2-pos.all
+# TLS.CanaryMapping.HdrMatch2-neg
+
+
+class Plain(AmbassadorTest):
     """
-    Creates an Ambassador that will be running TLS.
+    Creates an Ambassador that will be using plaintext.
 
     Every AmbassadorTest subclass gets to include manifests (which will be
     added to the base Ambassador manifest?), configs (which act like any other
@@ -30,9 +82,9 @@ class TLS(AmbassadorTest):
         pass
 
 
-class Plain(AmbassadorTest):
+class TLS(AmbassadorTest):
     """
-    This Ambassador will be using plaintext.
+    This Ambassador will be using TLS.
     """
     pass    # not gonna spell most of these out.
 
